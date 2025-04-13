@@ -198,10 +198,163 @@ sudo kubectl get svc
 ---
 ## Задание 2. Создать приложение с вашей веб-страницей, доступной по HTTPS 
 
-1. Создать Deployment приложения, состоящего из Nginx.
-2. Создать собственную веб-страницу и подключить её как ConfigMap к приложению.
-3. Выпустить самоподписной сертификат SSL. Создать Secret для использования сертификата.
-4. Создать Ingress и необходимый Service, подключить к нему SSL в вид. Продемонстировать доступ к приложению по HTTPS. 
-4. Предоставить манифесты, а также скриншоты или вывод необходимых команд.
+1. Создать **Deployment** приложения, состоящего из **Nginx**.
+2. Создать собственную веб-страницу и подключить её как **ConfigMap** к приложению.
+3. Выпустить самоподписной сертификат **SSL**. Создать **Secret** для использования сертификата.
+4. Создать **Ingress** и необходимый **Service**, подключить к нему **SSL** в вид. Продемонстировать доступ к приложению по **HTTPS**. 
+5. Предоставить манифесты, а также скриншоты или вывод необходимых команд.
 
 ### Ответ:
+
+1. Создадим **Deployment** с **Nginx**:
+
+**deployment-ssl.yaml**
+
+```
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-ssl
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-ssl
+  template:
+    metadata:
+      labels:
+        app: nginx-ssl
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:latest
+          ports:
+            - containerPort: 80
+            - containerPort: 443
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+            - name: ssl-certs
+              mountPath: /etc/ssl/certs
+              readOnly: true
+      volumes:
+        - name: html
+          configMap:
+            name: nginx-html-ssl
+        - name: ssl-certs
+          secret:
+            secretName: ssl-cert
+```
+
+2. Создаем веб-страницу и подключаем её как **ConfigMap**:
+
+**nginx-html-ssl.yaml**
+
+```
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-html-ssl
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Welcome to NGINX with HTTPS!</title>
+    </head>
+    <body>
+      <h1>NGINX with HTTPS is working! 🚀</h1>
+      <p>This page is served by NGINX inside a pod with SSL.</p>
+    </body>
+    </html>
+```
+3. Выпускаем самоподписной сертификат **SSL** и создаем **Secret** для использования сертификата.
+
+```
+openssl req -x509 -newkey rsa:4096 -keyout nginx.key -out nginx.crt -days 365 -nodes
+```
+
+```
+sudo kubectl create secret tls ssl-cert --cert=nginx.crt --key=nginx.key
+```
+
+```
+sudo kubectl get secret
+```
+
+<img src = "img/05.png" width = 100%>
+
+<img src = "img/06.png" width = 100%>
+
+4. Создаем **Ingress** и **Service**, подключаем к нему **SSL**:
+
+**nginx-svc-ssl.yaml**
+
+```
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-svc-ssl
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+    - name: https
+      port: 443
+      targetPort: 443
+  selector:
+    app: nginx-ssl
+```
+
+**ingress.yaml**
+
+```
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: nginx-ingress-ssl
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  rules:
+  - host: netology.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: nginx-svc-ssl
+            port:
+              number: 80
+  tls:
+  - hosts:
+    - netology.local
+    secretName: ssl-cert
+```
+
+Применяем манифесты и проверяем:
+
+```
+sudo kubectl apply -f nginx-html-ssl.yaml
+```
+
+```
+sudo kubectl apply -f deployment-ssl.yaml
+```
+
+```
+sudo kubectl apply -f nginx-svc-ssl.yaml
+```
+
+```
+sudo kubectl apply -f ingress.yaml
+```
+
+<img src = "img/07.png" width = 100%>
+
+<img src = "img/08.png" width = 100%>
+
+<img src = "img/09.png" width = 100%>

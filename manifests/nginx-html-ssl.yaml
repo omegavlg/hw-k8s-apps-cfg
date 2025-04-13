@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-html-ssl
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>Welcome to NGINX with HTTPS!</title>
+    </head>
+    <body>
+      <h1>NGINX with HTTPS is working! 🚀</h1>
+      <p>This page is served by NGINX inside a pod with SSL.</p>
+    </body>
+    </html>
